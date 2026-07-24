@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: yt-ai-digest-bot
+    env: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py          # NOTE: single-file build -> "python app.py", not "python -m app.main"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.6
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHANNEL_ID
+        sync: false
+      - key: TELEGRAM_ADMIN_IDS
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: AI_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: meta-llama/llama-3.1-8b-instruct:free
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-1.5-flash
+      - key: SCHEDULE_TIMEZONE
+        value: Asia/Kolkata
+      - key: SCHEDULE_TIME
+        value: "09:00"
+      - key: TOP_N
+        value: "3"
+      - key: SEARCH_MAX_CANDIDATES
+        value: "40"
+      - key: SEARCH_QUERIES
+        value: "AI automation tutorial,python project tutorial,local AI ollama tutorial,LLM agent tutorial,open source AI tools tutorial,docker tutorial,RAG tutorial"
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: DATABASE_PATH
+        value: ./data/app.db
+      - key: LOG_LEVEL
+        value: INFO
+    # NOTE: Render's FREE web service plan has no persistent disk (paid-only).
+    # SQLite here lives on ephemeral storage and resets on every deploy/restart --
+    # see README "Free tier caveats" for the impact and free workarounds.
+
+# --- Procfile equivalent, for platforms that read a Procfile instead of render.yaml ---
+# web: python app.py
