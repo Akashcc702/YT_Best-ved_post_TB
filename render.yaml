@@ -24,7 +24,7 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
-        value: meta-llama/llama-3.1-8b-instruct:free
+        value: openrouter/free
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL

@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     # --- AI ranking ---
     ai_provider: Literal["openrouter", "gemini"] = Field(default="openrouter", alias="AI_PROVIDER")
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
-    openrouter_model: str = Field(default="meta-llama/llama-3.1-8b-instruct:free", alias="OPENROUTER_MODEL")
+    openrouter_model: str = Field(default="openrouter/free", alias="OPENROUTER_MODEL")
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL")
 
@@ -628,7 +628,9 @@ def build_user_prompt(video: dict[str, Any]) -> str:
 
 Two interchangeable free backends are supported:
   - OpenRouter (AI_PROVIDER=openrouter) — call any model, including free-tier
-    models such as `meta-llama/llama-3.1-8b-instruct:free`.
+    models such as `openrouter/free` (OpenRouter's own auto-router, which picks a
+    free model at random from what's currently available) or a specific model
+    whose name ends in `:free`.
   - Gemini (AI_PROVIDER=gemini) — Google's free-tier Gemini API.
 
 Both return the same normalized dict shape so the rest of the app never has

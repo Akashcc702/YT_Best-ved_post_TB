@@ -13,6 +13,7 @@ API — free, keyless, no quota, no Google account.** Everything else is unchang
 | `requirements.txt` | Trimmed to exactly what `app.py` imports. |
 | `.env.example` | Every environment variable the app reads, with comments. |
 | `render.yaml` | Render Blueprint deploy config (`startCommand: python app.py`). |
+| `runtime.txt` | Pins the Python version Render builds with. **Required** — without it Render may pick a newer Python (e.g. 3.14) for which `pydantic-core` has no prebuilt wheel yet, causing a Rust/maturin build failure (see "Fixed: build failure" below). |
 
 ## Why Invidious (of the 5 options you listed)
 
@@ -58,7 +59,51 @@ Verified after the change: `python -m py_compile app.py` (clean), full `pytest t
 pass, **run without any `YOUTUBE_API_KEY` set** to confirm it's no longer required), and a mocked
 failover test showing the client correctly skips a dead instance and succeeds on the next.
 
-## Quick start
+## Fixed: build failure (`pydantic-core` / maturin / Rust, exit code 1)
+
+If you saw this in your Render build log:
+
+```
+Using Python version 3.14.3 (default)
+...
+Collecting pydantic-core==2.23.4
+  Preparing metadata (pyproject.toml): finished with status 'error'
+  💥 maturin failed
+    Caused by: Cargo metadata failed...
+  error: failed to create directory `/usr/local/cargo/registry/cache/...`
+  Caused by: Read-only file system (os error 30)
+error: metadata-generation-failed
+```
+
+**What happened:** Render defaulted to Python 3.14 for the build. `pydantic-core==2.23.4` (a
+dependency of `pydantic`) has no prebuilt wheel for Python 3.14 yet, so pip fell back to
+compiling it from source with Rust/maturin — and that compile needs to write to a Cargo cache
+directory that's read-only in Render's build environment, so it failed outright.
+
+**The fix:** this delivery now includes **`runtime.txt`** containing `python-3.12.6`, which
+pins Render to a Python version `pydantic-core` already ships a prebuilt wheel for — no Rust
+compile needed. `render.yaml` also sets `PYTHON_VERSION=3.12.6` as a second, redundant pin (in
+case your service was created as a plain Web Service rather than through the Blueprint, where
+`render.yaml`'s env vars aren't read).
+
+**What to do:**
+1. Add `runtime.txt` (included in this delivery) to your repo root, alongside `app.py`.
+2. Commit and push it.
+3. On Render: **Manual Deploy → Clear build cache & deploy** (a plain redeploy can reuse a
+   stale cached environment — clearing the cache forces it to re-read `runtime.txt`).
+4. Check the top of the new build log — it should now say `Using Python version 3.12.6`
+   instead of `3.14.3`, and the `pydantic-core` step should download a wheel instead of trying
+   to build one.
+
+## Also changed: default AI model
+
+`OPENROUTER_MODEL` now defaults to **`openrouter/free`** — OpenRouter's own Free Models Router,
+which automatically picks a working free model for each request instead of pointing at one
+specific model name that could be discontinued or renamed later. If you'd rather pin a specific
+free model instead (for more consistent behavior between runs), set `OPENROUTER_MODEL` to any
+model whose id ends in `:free` from https://openrouter.ai/models.
+
+
 
 ```bash
 pip install -r requirements.txt
@@ -89,7 +134,8 @@ git branch -M main
 git remote add origin https://github.com/<your-username>/yt-ai-digest-bot.git
 git push -u origin main
 ```
-Don't push a real `.env` file — only `.env.example`.
+Don't push a real `.env` file — only `.env.example`. Make sure **`runtime.txt`** is included —
+it's what prevents the Python-3.14/pydantic-core build failure described above.
 
 ### 3. Create the Render Blueprint
 1. [render.com](https://render.com) → sign up with GitHub.
@@ -140,6 +186,7 @@ Render's free web service sleeps after ~15 min idle, which can make it miss the 
 | `RuntimeError: All Invidious instances failed` in logs | All configured instances are down/unreachable right now — check https://api.invidious.io/ for currently healthy public instances and update `INVIDIOUS_INSTANCES` |
 | Messages not posting to the channel | Bot must be a channel **admin** with "Post Messages" permission |
 | Duplicate videos after a restart | Expected on free tier — see "No persistent disk" above |
+| Build fails on `pydantic-core` / maturin / Rust / read-only file system | `runtime.txt` is missing or Render used a cached build — see "Fixed: build failure" section above |
 
 ## Telegram commands
 `/today` (admin) run now + post • `/top` last posted set • `/history` recent posts •
