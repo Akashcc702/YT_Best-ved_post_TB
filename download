@@ -1,7 +1,0 @@
-__pycache__/
-*.pyc
-.env
-data/*.db
-data/*.db-*
-logs/*.log
-venv/
